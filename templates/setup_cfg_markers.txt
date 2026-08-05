@@ -1,0 +1,6 @@
+# Add to your service's setup.cfg under [tool:pytest]:
+markers =
+    infra: Infrastructure validation test (requires --pro-mode)
+    infra_postgres: Requires PostgreSQL connection
+    infra_clickhouse: Requires ClickHouse connection
+    infra_kafka: Requires Kafka broker
