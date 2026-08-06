@@ -36,7 +36,7 @@ EXPECTED_COLUMN_TYPES = {
 }
 
 # ADAPT: Set your ClickHouse database name
-CH_DATABASE = "ccp_ril"  # ADAPT: your database name
+CH_DATABASE = "your_database"  # ADAPT: your ClickHouse database name, or auto-set from memory.yaml
 
 
 def _get_ch_tables(ch_client):

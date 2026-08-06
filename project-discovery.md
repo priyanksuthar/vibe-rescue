@@ -186,7 +186,7 @@ grep -rn "POSTGRES_\|DATABASE_URL\|SQLALCHEMY_DATABASE_URI" {service_path}/ --in
 grep -rn "CLICKHOUSE_\w+_HOST\|CLICKHOUSE_\w+_PORT" {service_path}/ --include="*.py" | grep -oP "CLICKHOUSE_\w+" | sort -u
 
 # Kafka broker connections
-grep -rn "KAFKA_BROKER_LIST\|KAFKA_BOOTSTRAP_SERVERS\|KDC_KAFKA\|GCP_KAFKA" {service_path}/ --include="*.py" | grep -oP "(KDC_KAFKA_BROKER_LIST|GCP_KAFKA_BROKER_LIST|KAFKA_BOOTSTRAP_SERVERS)" | sort -u
+grep -rn "KAFKA_BROKER\|KAFKA_BOOTSTRAP\|KAFKA_SERVERS\|BROKER_LIST" {service_path}/ --include="*.py" --include="*.ts" --include="*.go" --include="*.java" | grep -oP "(\w*KAFKA\w*BROKER\w*|\w*KAFKA\w*BOOTSTRAP\w*|\w*KAFKA\w*SERVERS\w*)" | sort -u
 ```
 
 Record each detected connection with its env var name. These are used by `--pro-mode` to determine which infrastructure containers to start and which test categories to enable.
@@ -343,3 +343,35 @@ After writing the profile, create the directory if needed:
 ```bash
 mkdir -p .vibe-rescue
 ```
+
+## Step 7: Write Infrastructure to Memory (--pro-mode only)
+
+If `--pro-mode` is active and this is a first run or `--rescan`, write discovered infrastructure connections to `.vibe-rescue/memory.yaml` in addition to the project profile.
+
+Read `memory-schema.md` for the full memory file schema and auto-discovery agent steps.
+
+After project discovery completes, extract the following from the detected profile and write to the `infrastructure` section of memory.yaml:
+
+    infrastructure:
+      postgres:
+        - env_var: "{detected PostgreSQL env var}"
+          database: "{extracted database name}"
+          default_url: "{constructed connection URL}"
+      clickhouse:
+        - env_var: "{detected ClickHouse host env var}"
+          database: "{detected database name}"
+      kafka:
+        - env_var: "{detected Kafka broker env var}"
+          default_brokers: "localhost:9092"
+      container_orchestrator: "{detected from infrastructure.dev_helper or infrastructure.container_tool}"
+      compose_file: "{detected from infrastructure.compose_file}"
+      test_environment_detected: "{true if compose_file or dev_helper found}"
+
+Also detect and write naming patterns:
+
+    patterns:
+      topic_naming_regex: "{regex derived from common prefix/suffix of detected topics}"
+      topic_prefix: "{common prefix if all topics share one, null otherwise}"
+      consumer_config_path: "{path to consumer config file if found}"
+
+Present the discovery summary box for user confirmation before writing. Only write after user confirms.

@@ -50,7 +50,7 @@ def pg_engine():
     """
     url = os.environ.get(
         "POSTGRES_DATABASE_URL",  # ADAPT: your service's PG connection env var
-        "postgresql://ucp_user:ucp_local@localhost:5432/your_database",  # ADAPT: default
+        "postgresql://user:password@localhost:5432/your_database",  # ADAPT: default connection URL, or auto-set from memory.yaml
     )
     url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     try:
@@ -76,7 +76,7 @@ def ch_client():
         from clickhouse_driver import Client
         client = Client(
             host=host, port=port, user=user, password=password,
-            database="ccp_ril",  # ADAPT: your ClickHouse database name
+            database="your_database",  # ADAPT: your ClickHouse database name, or auto-set from memory.yaml
         )
         client.execute("SELECT 1")
         return client
@@ -91,7 +91,7 @@ def kafka_admin():
     # ADAPT: Change the env var name to match your service's Kafka broker config.
     """
     brokers = os.environ.get(
-        "KDC_KAFKA_BROKER_LIST",  # ADAPT: your broker list env var
+        "KAFKA_BOOTSTRAP_SERVERS",  # ADAPT: your broker list env var, or auto-set from memory.yaml
         "localhost:9092",
     )
     try:

@@ -15,13 +15,13 @@ SERVICE_ROOT = Path(__file__).parent.parent
 
 # ADAPT: List all topics consumed by your service
 CONSUMED_TOPICS = [
-    # "fynd-json-my-topic-1",
-    # "fynd-json-my-topic-2",
+    # "my-service-events-v1",
+    # "my-service-orders-v1",
 ]
 
 # ADAPT: List produced topic base constants (topics constructed dynamically)
 PRODUCED_TOPIC_BASES = [
-    # "fynd-json-my-produced-base",
+    # "my-service-output-base",
 ]
 
 # ADAPT: Set the expected total consumed topic count for sanity check
@@ -29,7 +29,7 @@ EXPECTED_CONSUMED_TOPIC_COUNT = 0  # ADAPT: your count
 
 # ADAPT: Regex pattern for your topic naming convention
 TOPIC_NAMING_PATTERN = re.compile(
-    r"^fynd-json-[a-z0-9-]+$"  # ADAPT: your naming regex
+    r"^[a-z][a-z0-9-]*$"  # ADAPT: your topic naming regex, or auto-set from memory.yaml
 )
 
 # ADAPT: Path to your consumer config file (for config alignment tests)
@@ -155,8 +155,7 @@ class TestInfraKafkaConsumerConfigAlignment:
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
-            # ADAPT: adjust regex to match your topic string pattern
-            matches = re.findall(r'"(fynd-json-[^"]+)"', stripped)
+            matches = re.findall(r'"([a-z][-a-z0-9_.]+)"', stripped)  # ADAPT: adjust regex to match your topic string pattern
             active_topics.update(matches)
 
         _ensure_topics_exist(kafka_admin, list(active_topics))
@@ -180,7 +179,7 @@ class TestInfraKafkaConsumerConfigAlignment:
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
-            matches = re.findall(r'"(fynd-json-[^"]+)"', stripped)
+            matches = re.findall(r'"([a-z][-a-z0-9_.]+)"', stripped)  # ADAPT: adjust regex to match your topic string pattern
             active_topics.update(matches)
 
         assert len(active_topics) == EXPECTED_CONSUMED_TOPIC_COUNT, (
