@@ -114,11 +114,37 @@ reports:
   output_dir: "{service}/docs/test-reports"
 
 pro_mode:
-  container_orchestrator: "ucp.sh"  # or "docker-compose"
+  container_orchestrator: "docker-compose"  # or path to your dev helper script
   postgres_env_prefix: "POSTGRES_"
   clickhouse_env_prefix: "CLICKHOUSE_"
-  kafka_env_var: "KDC_KAFKA_BROKER_LIST"
+  kafka_env_var: "KAFKA_BOOTSTRAP_SERVERS"
 ```
+
+## Memory System
+
+Vibe Rescue maintains a per-project memory file at `.vibe-rescue/memory.yaml` that stores:
+
+- **Infrastructure config** -- database connection env vars, Kafka broker details, container orchestrator, detected test environment
+- **Execution preferences** -- skipped categories, test order overrides, report format, pro-mode defaults
+- **Session permissions** -- auto-run, auto-fix approvals (reset each session, shown as banner for re-approval)
+- **Naming patterns** -- topic naming regex, topic prefix, consumer config path
+
+### How it works
+
+1. **First `--pro-mode` run**: The auto-discovery agent scans your codebase for packages, env vars, connection patterns, and existing test infrastructure. It presents a summary for your confirmation, then writes to `.vibe-rescue/memory.yaml`.
+2. **Subsequent runs**: Memory is loaded automatically. No re-discovery unless you pass `--rescan`.
+3. **Self-learning**: When you override defaults during a run (skip a category, change max fix attempts), the preference is saved to memory for future runs.
+4. **Session permissions**: Permissions like `--auto-run` are shown as a banner at session start for re-approval. They never persist silently.
+5. **`--rescan`**: Clears both `project-profile.yaml` and `memory.yaml`, triggering fresh discovery.
+
+### Auto-Discovery
+
+The discovery agent supports Python, Node.js, Go, and Java projects. It detects:
+- Infrastructure packages (PostgreSQL, ClickHouse, Kafka, MongoDB, Redis drivers)
+- Connection env vars from source code
+- Existing test infrastructure (docker-compose, Makefile, dev helper scripts, conftest.py fixtures)
+- Kafka topic names and naming conventions
+- Database/table names from ORM models and migrations
 
 ## Templates
 

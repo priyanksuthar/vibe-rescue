@@ -53,7 +53,7 @@ Fill in all `{placeholders}` from the run data. Omit sections that are empty (e.
 
 ## Infrastructure Validation Tests (--pro-mode)
 
-Run with `pytest --pro-mode` or `./local-dev/ucp.sh test {service_name}`.
+Run with `pytest --pro-mode` or via your project's container orchestrator (configured in `.vibe-rescue/memory.yaml`).
 Auto-skipped without the flag -- zero impact on existing test runs.
 
 | File | Tests | Description |
@@ -71,11 +71,11 @@ Auto-skipped without the flag -- zero impact on existing test runs.
     # Infrastructure validation (requires Docker containers)
     pytest tests/ --pro-mode -o "addopts="
 
-    # Via ucp.sh (handles container lifecycle)
-    ./local-dev/ucp.sh test {service_name}
+    # Via container orchestrator (if configured in .vibe-rescue/memory.yaml)
+    {container_orchestrator} test {service_name}
 
     # With dependent services (E2E)
-    ./local-dev/ucp.sh test {service_name} --all
+    {container_orchestrator} test {service_name} --all
 
 ## Test Fixes Applied
 

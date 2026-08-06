@@ -39,7 +39,7 @@ Parse the user's invocation for flags:
 | (none) | Change mode, interactive | Analyze git diff, generate tests, run, show fixes for approval |
 | `--bootstrap {service}` | Bootstrap mode | Scan full service, generate baseline tests across all categories |
 | `--auto-run` | Autonomous | Auto-fix code/tests in a loop until stable (no per-fix confirmation) |
-| `--rescan` | Rescan | Invalidate cached project profile, re-run discovery |
+| `--rescan` | Rescan | Invalidate cached project profile AND memory file, re-run all discovery |
 | `--pro-mode` | Infrastructure validation | Generate + run infra tests against real Docker services (PostgreSQL, ClickHouse, Kafka) |
 | `--pro-mode --all` | Full E2E validation | Also start dependent service profiles for cross-service E2E tests |
 | `--help` | Help | Print usage, flags, categories, and examples. No tests run. |
@@ -95,6 +95,7 @@ When the user passes `--help`, print the following block exactly and stop. Do NO
 ║    infra_kafka          Topic existence, naming conventions      ║
 ║                                                                  ║
 ║  PIPELINE PHASES                                                 ║
+║    0.5 Memory     Load memory, permissions, auto-discovery       ║
 ║    0. Discover    Auto-detect project type and tech stack        ║
 ║    1. Analyze     Classify changes, resolve dependencies         ║
 ║    2. Generate    Create/update test files per category          ║
@@ -128,6 +129,35 @@ When the user passes `--help`, print the following block exactly and stop. Do NO
 ## The 6-Phase Pipeline
 
 Execute phases in order. Do not skip phases.
+
+### Phase 0.5: Memory Check
+
+Read `memory-schema.md` for full instructions.
+
+1. Check for `.vibe-rescue/memory.yaml`
+2. If exists:
+   a. Load infrastructure config, preferences, patterns
+   b. Show permission banner if `permissions` section has any `true` values:
+      ```
+      ╔══════════════════════════════════════════════════════════════════╗
+      ║  VIBE RESCUE - Permission Review                                 ║
+      ╠══════════════════════════════════════════════════════════════════╣
+      ║  Previous session granted these permissions:                     ║
+      ║                                                                  ║
+      ║    [1] auto_run             Auto-fix code/tests without asking   ║
+      ║    [2] auto_fix_test_infra  Auto-fix broken test imports/fixtures║
+      ║                                                                  ║
+      ║  Re-approve for this session? (yes / no / select)                ║
+      ╚══════════════════════════════════════════════════════════════════╝
+      ```
+   c. Wait for permission re-approval ("yes" = all approved, "no" = all revoked, "select" = pick individually)
+   d. Show active preferences summary: "Active preferences: {list}"
+3. If not exists AND `--pro-mode`:
+   a. Run auto-discovery agent (see `memory-schema.md` Auto-Discovery section)
+   b. Present discovery summary for confirmation
+   c. Create `.vibe-rescue/memory.yaml` with confirmed values
+4. If not exists AND no `--pro-mode`:
+   a. Continue to Phase 0 normally
 
 ### Phase 0: Project Discovery
 
@@ -183,6 +213,7 @@ If infra categories are in the manifest:
 1. Check for `templates/` directory in the skill installation
 2. Copy and adapt template files (`conftest_pro_mode.py`, `test_infra_postgres.py`, etc.) to the service's test directory
 3. Replace `# ADAPT:` markers with service-specific values (model imports, topic lists, table names)
+If `.vibe-rescue/memory.yaml` exists, use values from `infrastructure` and `patterns` sections to auto-populate `# ADAPT:` markers instead of leaving them for manual editing. If memory has no value for a marker, leave the `# ADAPT:` comment as fallback.
 4. Add `--pro-mode` machinery to the service's `conftest.py` if not already present
 5. Add infra markers to `setup.cfg` `[tool:pytest]` section
 6. Add test dependencies to `requirements.test.txt`: `psycopg2-binary>=2.9.0`, `clickhouse-driver>=0.2.0`, `kafka-python>=2.0.2`
@@ -208,7 +239,7 @@ Container requirements per category:
 - `infra_kafka`: Kafka + Zookeeper containers
 
 **Pro-mode container orchestration:**
-If `local-dev/ucp.sh test` command is available, delegate container lifecycle to it (handles startup, healthchecks, env vars). Otherwise, use docker-compose directly:
+Read `container_orchestrator` from `.vibe-rescue/memory.yaml`. If it is a script path, verify the script exists and use it for container lifecycle. If it is `docker-compose`, use docker-compose directly. If no orchestrator is configured, try docker-compose as fallback:
 1. `docker compose up -d` for infrastructure containers
 2. Wait for healthchecks: `pg_isready`, `clickhouse-client --query "SELECT 1"`, `kafka-broker-api-versions`
 3. Set environment variables for host-side test runner (connection strings pointing to localhost)
@@ -254,6 +285,22 @@ Read `fix-loop.md` for full instructions.
 4. If a fix introduces NEW failures: REVERT the fix, escalate to user
 5. NEVER auto-modify hand-written tests -- always ask user even in auto-run
 6. Loop until all tests pass
+
+### Post-Phase 5: Preference Learning
+
+After the fix loop completes, check if the user overrode any default behavior during this run:
+
+1. If user skipped a test category: add to `preferences.skip_categories` in memory
+2. If user changed max fix attempts: update `preferences.auto_run_max_attempts`
+3. If user granted `--auto-run` mid-session: set `permissions.auto_run: true`
+4. If user said "always use pro-mode": set `preferences.pro_mode_default: true`
+
+After updating, print: "Saved: {preference description}. Clear with `--rescan`."
+
+Update rules:
+- Overwrite, not append (changing a preference replaces the old value)
+- If user un-skips a previously skipped category, remove it from the list
+- Memory file must stay under ~100 lines
 
 ### Phase 6: Report
 

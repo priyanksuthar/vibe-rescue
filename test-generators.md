@@ -230,6 +230,16 @@ When the change manifest lists multiple `affected_services`:
 
 ## Infrastructure Test Categories (--pro-mode)
 
+Before generating infra tests, read `.vibe-rescue/memory.yaml` if it exists. Use values from `infrastructure` and `patterns` sections to populate template `# ADAPT:` markers automatically:
+- `memory.infrastructure.postgres[].database` -> PostgreSQL database name
+- `memory.infrastructure.clickhouse[].database` -> ClickHouse database name  
+- `memory.infrastructure.kafka[].env_var` -> Kafka broker env var
+- `memory.patterns.topic_naming_regex` -> topic naming pattern
+- `memory.patterns.topic_prefix` -> topic prefix for grep patterns
+- `memory.patterns.consumer_config_path` -> path to consumer config file
+
+If memory has no value for a marker, leave the `# ADAPT:` comment as a manual fallback.
+
 The following 3 categories are only generated when `--pro-mode` is passed. They require real Docker containers running and connect to actual databases/brokers.
 
 All infrastructure tests use two-level markers: `@pytest.mark.infra` (general gate) plus a specific marker (`@pytest.mark.infra_postgres`, etc.). Without `--pro-mode`, all infra tests auto-skip via `pytest_collection_modifyitems`.
@@ -277,8 +287,7 @@ All infrastructure tests use two-level markers: `@pytest.mark.infra` (general ga
 
 1. Find ClickHouse table references:
    ```bash
-   grep -rn "FROM.*ccp_ril\." {service_path}/ --include="*.py" | grep -oP "ccp_ril\.\K\w+" | sort -u
-   grep -rn "INSERT INTO" {service_path}/migrations/ --include="*.sql" 2>/dev/null
+   grep -rn "FROM\|INSERT INTO" {service_path}/ --include="*.py" --include="*.sql" | grep -vi "test\|__pycache__" | grep -oP "FROM\s+\K\w+\.\w+" | sort -u
    ```
 2. Classify tables as: base (must exist), distributed (warn if missing in single-node), materialized views (warn if missing)
 3. Extract expected columns from migration DDL or query patterns
@@ -309,7 +318,7 @@ All infrastructure tests use two-level markers: `@pytest.mark.infra` (general ga
 
 1. Find consumed topic names:
    ```bash
-   grep -rn '"fynd-json-\|"topic"' {service_path}/consumers/ --include="*.py" | grep -oP '"(fynd-json-[^"]+)"'
+   grep -rn '"topic"\|"subscribe"\|"consume"' {service_path}/ --include="*.py" --include="*.ts" --include="*.go" --include="*.java" | grep -oP '"([a-z][-a-z0-9_.]+)"' | sort -u
    ```
 2. Find produced topic base constants in `common/constants.py` or equivalent
 3. Parse `consumer_config.py` to count active (non-commented) topic entries
